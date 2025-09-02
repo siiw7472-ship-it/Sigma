@@ -1,4 +1,4 @@
--- Illusion Hub - Near-Completion Detection & Safe Tween
+-- Illusion Hub - Simple Working Detection
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -17,8 +17,7 @@ local escaping = false
 local laserCape = nil
 local Net = nil
 local PlayerMouse = nil
-local activePromptData = nil
-local godModeConnection = nil
+local promptConnection = nil
 
 -- Find laser cape
 local function findLaserCape()
@@ -56,7 +55,7 @@ local function shootLaser()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
     
-    -- Load modules if needed
+    -- Load modules
     if not Net or not PlayerMouse then
         pcall(function()
             if ReplicatedStorage:FindFirstChild("Packages") then
@@ -76,7 +75,7 @@ local function shootLaser()
             PlayerMouse.Hit = {Position = rootPart.Position}
             PlayerMouse.Target = rootPart
             Net:RemoteEvent("UseItem"):FireServer(rootPart.Position, rootPart)
-            print("Laser fired near completion")
+            print("Laser fired")
         end
     end)
     
@@ -87,52 +86,30 @@ local function shootLaser()
     end)
 end
 
--- Advanced god mode with anticheat protection
-local function enableAdvancedGodMode()
+-- Simple god mode
+local function enableGod()
     local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    humanoid.MaxHealth = math.huge
-    humanoid.Health = math.huge
-    
-    -- Advanced protection loop
-    godModeConnection = RunService.Heartbeat:Connect(function()
-        if not escaping then return end
-        
-        if humanoid and humanoid.Parent then
-            -- Health protection
-            if humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
             
-            -- State protection
-            if humanoid.PlatformStand then
-                humanoid.PlatformStand = false
-            end
-            if humanoid.Sit then
-                humanoid.Sit = false
-            end
-            
-            -- Death protection
-            if humanoid:GetState() == Enum.HumanoidStateType.Dead then
-                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                humanoid.Health = humanoid.MaxHealth
-            end
+            -- Simple protection
+            spawn(function()
+                while escaping do
+                    if humanoid and humanoid.Parent then
+                        humanoid.Health = humanoid.MaxHealth
+                        humanoid.PlatformStand = false
+                    end
+                    task.wait(0.1)
+                end
+            end)
         end
-    end)
-    
-    print("Advanced god mode enabled")
+    end
 end
 
-local function disableAdvancedGodMode()
-    if godModeConnection then
-        godModeConnection:Disconnect()
-        godModeConnection = nil
-    end
-    
+local function disableGod()
     local character = player.Character
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -141,12 +118,10 @@ local function disableAdvancedGodMode()
             humanoid.Health = 100
         end
     end
-    
-    print("Advanced god mode disabled")
 end
 
--- Safe anticheat-resistant tween
-local function safeTweenToBase()
+-- Medium speed safe tween
+local function safeGoToBase()
     if not basePosition or escaping then return end
     
     local character = player.Character
@@ -156,212 +131,133 @@ local function safeTweenToBase()
     if not rootPart then return end
     
     escaping = true
-    enableAdvancedGodMode()
+    enableGod()
     
-    print("Starting safe tween sequence")
-    status.Text = "SAFE ESCAPE IN PROGRESS..."
+    print("Starting safe tween")
+    status.Text = "Escaping to base..."
     status.TextColor3 = Color3.fromRGB(255, 100, 0)
     
     local startPos = rootPart.Position
     local targetPos = basePosition.Position
     local distance = (startPos - targetPos).Magnitude
     
-    -- Medium speed calculation (not too fast, not too slow)
-    local baseTime = distance / 80 -- 80 studs per second = medium speed
-    local tweenTime = math.clamp(baseTime, 1.5, 4) -- Between 1.5-4 seconds
+    -- Medium speed (not too fast for anticheat)
+    local tweenTime = math.clamp(distance / 70, 2, 5) -- 70 studs per second
     
-    -- Phase 1: Gradual ascent (anticheat friendly)
-    local phase1Target = CFrame.new(startPos + Vector3.new(0, 40, 0))
-    local phase1Tween = TweenService:Create(rootPart, 
-        TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {CFrame = phase1Target}
+    -- Simple 3-phase tween
+    -- Phase 1: Go up
+    local phase1 = TweenService:Create(rootPart, 
+        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {CFrame = CFrame.new(startPos + Vector3.new(0, 50, 0))}
     )
     
-    phase1Tween:Play()
-    print("Phase 1: Gradual ascent")
+    phase1:Play()
     
-    phase1Tween.Completed:Connect(function()
-        -- Small delay to seem natural
-        task.wait(0.1)
-        
-        -- Phase 2: Medium-speed travel with curved path
-        local midPoint = Vector3.new(
-            startPos.X + (targetPos.X - startPos.X) * 0.5,
-            math.max(startPos.Y, targetPos.Y) + 25,
-            startPos.Z + (targetPos.Z - startPos.Z) * 0.5
+    phase1.Completed:Connect(function()
+        -- Phase 2: Travel
+        local phase2 = TweenService:Create(rootPart,
+            TweenInfo.new(tweenTime, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+            {CFrame = CFrame.new(targetPos + Vector3.new(0, 30, 0))}
         )
         
-        local phase2Target = CFrame.new(midPoint)
-        local phase2Tween = TweenService:Create(rootPart,
-            TweenInfo.new(tweenTime * 0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-            {CFrame = phase2Target}
-        )
+        phase2:Play()
         
-        phase2Tween:Play()
-        print("Phase 2: Curved travel to midpoint")
-        
-        phase2Tween.Completed:Connect(function()
-            -- Small delay between phases
-            task.wait(0.05)
-            
-            -- Phase 3: Approach target area
-            local phase3Target = CFrame.new(targetPos + Vector3.new(0, 20, 0))
-            local phase3Tween = TweenService:Create(rootPart,
-                TweenInfo.new(tweenTime * 0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-                {CFrame = phase3Target}
+        phase2.Completed:Connect(function()
+            -- Phase 3: Land
+            local phase3 = TweenService:Create(rootPart,
+                TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {CFrame = basePosition}
             )
             
-            phase3Tween:Play()
-            print("Phase 3: Approaching target")
+            phase3:Play()
             
-            phase3Tween.Completed:Connect(function()
-                -- Small delay before final descent
-                task.wait(0.1)
+            phase3.Completed:Connect(function()
+                rootPart.CFrame = basePosition
+                shootLaser()
                 
-                -- Phase 4: Gentle landing
-                local phase4Tween = TweenService:Create(rootPart,
-                    TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                    {CFrame = basePosition}
-                )
+                print("Safe tween completed")
+                status.Text = "Arrived safely!"
+                status.TextColor3 = Color3.fromRGB(0, 255, 0)
                 
-                phase4Tween:Play()
-                print("Phase 4: Gentle landing")
+                task.wait(2)
+                disableGod()
+                escaping = false
                 
-                phase4Tween.Completed:Connect(function()
-                    -- Ensure exact position
-                    task.wait(0.1)
-                    rootPart.CFrame = basePosition
-                    
-                    -- Final security shot
-                    shootLaser()
-                    
-                    print("Safe escape completed successfully")
-                    status.Text = "Safe escape completed!"
-                    status.TextColor3 = Color3.fromRGB(0, 255, 0)
-                    
-                    -- Gradual cleanup
-                    task.wait(2)
-                    disableAdvancedGodMode()
-                    escaping = false
-                    
-                    -- Auto restart monitoring
-                    if isBaseSet then
-                        task.wait(1)
-                        status.Text = "Monitoring active..."
-                        status.TextColor3 = Color3.fromRGB(255, 255, 0)
-                    end
-                end)
+                -- Restart monitoring
+                if isBaseSet then
+                    task.wait(1)
+                    status.Text = "Monitoring..."
+                    status.TextColor3 = Color3.fromRGB(255, 255, 0)
+                end
             end)
         end)
     end)
 end
 
--- Near-completion detection system
-local function startNearCompletionMonitoring()
+-- Simple working detection
+local function startSimpleMonitoring()
     if monitoring then return end
     
     monitoring = true
-    print("Starting near-completion monitoring")
+    print("Starting simple proximity monitoring")
     
-    -- Use PromptButtonHoldBegan for immediate detection
-    local holdBeganConnection = ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt, playerWhoTriggered)
+    promptConnection = ProximityPromptService.PromptTriggered:Connect(function(prompt, playerWhoTriggered)
         if playerWhoTriggered ~= player then return end
         if escaping then return end
-        if not basePosition then return end
+        if not basePosition then 
+            print("No base set")
+            return 
+        end
         
-        print("Hold began on prompt:", prompt.ObjectText or "Unknown")
+        print("PROMPT TRIGGERED:", prompt.ObjectText or "Unknown")
         
         local holdTime = prompt.HoldDuration or 3
+        print("Hold time:", holdTime)
         
-        -- Calculate near-completion timing (85% of hold duration)
-        local nearCompletionDelay = holdTime * 0.85
+        status.Text = "PROMPT ACTIVE!"
+        status.TextColor3 = Color3.fromRGB(255, 200, 0)
         
-        print("Hold duration:", holdTime, "- Will fire laser at", nearCompletionDelay, "seconds (85% completion)")
+        -- Calculate when to shoot (near completion)
+        local shootDelay = holdTime * 0.8 -- Shoot at 80% completion
         
-        status.Text = "PROMPT DETECTED - WAITING..."
-        status.TextColor3 = Color3.fromRGB(255, 255, 0)
+        print("Will shoot laser in", shootDelay, "seconds")
         
-        -- Store active prompt data
-        activePromptData = {
-            prompt = prompt,
-            startTime = tick(),
-            holdTime = holdTime,
-            nearCompletionDelay = nearCompletionDelay
-        }
-        
-        -- Wait for near-completion then fire laser and escape
+        -- Wait and shoot at near completion
         spawn(function()
-            task.wait(nearCompletionDelay)
+            task.wait(shootDelay)
             
-            if activePromptData and monitoring and not escaping then
-                print("NEAR COMPLETION REACHED - FIRING LASER AND ESCAPING!")
+            if monitoring and not escaping then
+                print("SHOOTING LASER AT NEAR COMPLETION!")
                 
-                status.Text = "NEAR COMPLETION - LASER + ESCAPE!"
+                status.Text = "LASER FIRED - ESCAPING!"
                 status.TextColor3 = Color3.fromRGB(255, 0, 0)
                 
-                -- Equip and shoot laser at near-completion
+                -- Equip and shoot
                 equipLaser()
                 task.wait(0.1)
                 shootLaser()
                 
-                -- Small delay then start safe escape
-                task.wait(0.2)
-                safeTweenToBase()
-                
-                -- Clear active prompt data
-                activePromptData = nil
+                -- Small delay then escape
+                task.wait(0.3)
+                safeGoToBase()
             end
         end)
     end)
-    
-    -- Use PromptButtonHoldEnded to clear data if released early
-    local holdEndedConnection = ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt, playerWhoTriggered)
-        if playerWhoTriggered ~= player then return end
-        
-        if activePromptData and activePromptData.prompt == prompt then
-            print("Hold ended early - clearing prompt data")
-            activePromptData = nil
-            
-            if not escaping then
-                status.Text = "Hold ended early"
-                status.TextColor3 = Color3.fromRGB(150, 150, 150)
-                
-                -- Reset status after a moment
-                task.wait(2)
-                if monitoring and not escaping then
-                    status.Text = "Monitoring active..."
-                    status.TextColor3 = Color3.fromRGB(255, 255, 0)
-                end
-            end
-        end
-    end)
-    
-    -- Store connections for cleanup
-    monitoring = {
-        holdBegan = holdBeganConnection,
-        holdEnded = holdEndedConnection
-    }
 end
 
 -- Stop monitoring
-local function stopNearCompletionMonitoring()
-    if not monitoring then return end
+local function stopSimpleMonitoring()
+    monitoring = false
     
-    print("Stopping near-completion monitoring")
-    
-    if type(monitoring) == "table" then
-        for _, connection in pairs(monitoring) do
-            if connection and connection.Disconnect then
-                connection:Disconnect()
-            end
-        end
+    if promptConnection then
+        promptConnection:Disconnect()
+        promptConnection = nil
     end
     
-    monitoring = false
-    activePromptData = nil
+    print("Monitoring stopped")
 end
 
--- GUI (same as before but with updated text)
+-- GUI
 if playerGui:FindFirstChild("IllusionHub") then
     playerGui:FindFirstChild("IllusionHub"):Destroy()
 end
@@ -372,32 +268,32 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 120)
-frame.Position = UDim2.new(0.5, -110, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0.5, -100, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 8)
 corner.Parent = frame
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+title.Size = UDim2.new(1, 0, 0, 25)
+title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 title.BorderSizePixel = 0
-title.Text = "Illusion Hub - Near Completion"
-title.TextColor3 = Color3.fromRGB(100, 200, 255)
+title.Text = "Illusion Hub"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
 local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = title
 
 local setBaseBtn = Instance.new("TextButton")
-setBaseBtn.Size = UDim2.new(0.9, 0, 0, 25)
+setBaseBtn.Size = UDim2.new(0.9, 0, 0, 22)
 setBaseBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
 setBaseBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
 setBaseBtn.BorderSizePixel = 0
@@ -408,11 +304,11 @@ setBaseBtn.Font = Enum.Font.Gotham
 setBaseBtn.Parent = frame
 
 local setBtnCorner = Instance.new("UICorner")
-setBtnCorner.CornerRadius = UDim.new(0, 5)
+setBtnCorner.CornerRadius = UDim.new(0, 4)
 setBtnCorner.Parent = setBaseBtn
 
 local monitorBtn = Instance.new("TextButton")
-monitorBtn.Size = UDim2.new(0.9, 0, 0, 25)
+monitorBtn.Size = UDim2.new(0.9, 0, 0, 22)
 monitorBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
 monitorBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 monitorBtn.BorderSizePixel = 0
@@ -423,14 +319,14 @@ monitorBtn.Font = Enum.Font.Gotham
 monitorBtn.Parent = frame
 
 local monBtnCorner = Instance.new("UICorner")
-monBtnCorner.CornerRadius = UDim.new(0, 5)
+monBtnCorner.CornerRadius = UDim.new(0, 4)
 monBtnCorner.Parent = monitorBtn
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(0.9, 0, 0, 20)
+status.Size = UDim2.new(0.9, 0, 0, 18)
 status.Position = UDim2.new(0.05, 0, 0.8, 0)
 status.BackgroundTransparency = 1
-status.Text = "Set base location first"
+status.Text = "Set base first"
 status.TextColor3 = Color3.fromRGB(200, 200, 200)
 status.TextScaled = true
 status.Font = Enum.Font.Gotham
@@ -449,12 +345,12 @@ setBaseBtn.MouseButton1Click:Connect(function()
     
     setBaseBtn.Text = "Base Set"
     setBaseBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    status.Text = "Base set - ready to monitor"
+    status.Text = "Base set - start monitor"
     status.TextColor3 = Color3.fromRGB(0, 255, 0)
     
     monitorBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
     
-    print("Base set at:", basePosition.Position)
+    print("Base set")
 end)
 
 -- Monitor
@@ -466,13 +362,13 @@ monitorBtn.MouseButton1Click:Connect(function()
     end
     
     if not monitoring then
-        startNearCompletionMonitoring()
+        startSimpleMonitoring()
         monitorBtn.Text = "Stop Monitor"
         monitorBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        status.Text = "Monitoring active..."
+        status.Text = "Monitoring..."
         status.TextColor3 = Color3.fromRGB(255, 255, 0)
     else
-        stopNearCompletionMonitoring()
+        stopSimpleMonitoring()
         monitorBtn.Text = "Start Monitor"
         monitorBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
         status.Text = "Monitoring stopped"
@@ -480,7 +376,7 @@ monitorBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Drag functionality
+-- Drag
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -517,7 +413,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.KeyCode == Enum.KeyCode.R and isBaseSet and not escaping then
-        safeTweenToBase()
+        safeGoToBase()
     elseif input.KeyCode == Enum.KeyCode.L then
         equipLaser()
         task.wait(0.1)
@@ -528,27 +424,26 @@ end)
 
 -- Setup
 spawn(function()
-    task.wait(2)
+    task.wait(1)
     laserCape = findLaserCape()
     if laserCape then
         print("Laser cape found:", laserCape.Name)
         equipLaser()
-    else
-        print("Laser cape not found")
     end
 end)
 
 -- Cleanup
 player.CharacterRemoving:Connect(function()
-    stopNearCompletionMonitoring()
-    disableAdvancedGodMode()
+    stopSimpleMonitoring()
     escaping = false
 end)
 
-print("Illusion Hub - Near-Completion Detection System Loaded")
-print("Features:")
-print("- Fires laser at 85% prompt completion")
-print("- Safe medium-speed 4-phase tween")
-print("- Advanced anticheat-resistant movement")
-print("- Auto-restarts monitoring after escape")
-print("Manual: R = Safe escape, L = Test laser")
+print("Illusion Hub - Simple Working System Loaded")
+print("How it works:")
+print("1. Set base location")
+print("2. Start monitoring")
+print("3. Use any proximity prompt:")
+print("   - Laser fires at 80% completion")
+print("   - Safe medium-speed escape to base")
+print("   - Auto-restarts monitoring")
+print("Manual: R = Go to base, L = Test laser")
